@@ -14,6 +14,20 @@ def argument_parser():
 
     return parser.parse_args()
 
+def logger(log_file, message):
+    '''
+    Log the message to the log file
+
+    Requires:
+    Ensures:
+    '''
+    
+    # print the formatted message to the console
+    print(message)
+
+    # write the message to the log file
+    with open(log_file, 'a') as file:
+        file.write(message + "\n")
 
 def syncer(source, replica):
     '''
@@ -40,3 +54,4 @@ def syncer(source, replica):
             # copy the file to the replica folder if it does not exist or if it is outdated
             if not os.path.exists(replica_file) or os.path.getmtime(source_file) > os.path.getmtime(replica_file):
                 shutil.copy2(source_file, replica_file)  # copy the file (including metadata)
+                logger("logs.txt", f"File '{file}' copied to '{replica_path}' successfully.")
