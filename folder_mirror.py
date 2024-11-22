@@ -2,8 +2,9 @@ import argparse
 import os
 import shutil
 import time
+import hashlib
 
-def argument_parser():
+def argumentPasser():
     '''
     Parse the command line arguments
     '''
@@ -23,14 +24,8 @@ def logger(log_file, message):
     Ensures:
     '''
 
-    timestamp = time.strftime("%H:%M:%S", time.localtime())  # get the current timestamp in the format 'HH:MM:SS'
-
-    """
-    --- uncomment the following lines to include the date in the timestamp ---
-
     # get the current timestamp in the format 'YYYY-MM-DD HH:MM:SS'
     timestamp = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
-    """
 
     formatted_message = f"[{timestamp}]: {message}"  # format the message
     print(formatted_message)  # print the formatted message to the console output
@@ -39,9 +34,37 @@ def logger(log_file, message):
     with open(log_file, 'a') as file:
         file.write(formatted_message + "\n")
 
+def getFileHash(file_path):
+    '''
+
+    '''
+    hasher = hashlib.md5()  # create a new md5 hash object
+
+    with open(file_path, 'rb') as file:
+        buf = file.read()  # read the file in chunks
+
+        while len(buf) > 0:
+            hasher.update(buf)
+            buf = file.read()
+    
+    return hasher.hexdigest()  # return the hash of the file
+
+def filesAreEqual(file1, file2):
+    '''
+    Compare two files.
+    First by size, then by hash if sizes match.
+    '''
+    # compare the sizes of the files
+    if os.path.getsize(file1) != os.path.getsize(file2):
+        return False
+
+    # compare the hashes of the files
+    return getFileHash(file1) == getFileHash(file2)
+
+
 def syncer(source, replica, log_file):
     '''
-    Synchronize the source folder with the replica folder
+    Synchronize the source folder with the replica folder.
 
     Requires:
     Ensures:
@@ -80,7 +103,7 @@ def syncer(source, replica, log_file):
                 changes_made = True
 
             # update (in case they are outdated)
-            elif os.path.getmtime(source_file) > os.path.getmtime(replica_file):
+            elif not filesAreEqual(source_file, replica_file):
                 shutil.copy2(source_file, replica_file)  # copy the file (including metadata)
                 logger(log_file, f"Updated file '{file}' in '{replica_path}'.")
                 changes_made = True
@@ -127,7 +150,7 @@ def main():
     '''
     Main function to run the syncer function when conditions are met
     '''
-    args = argument_parser()
+    args = argumentPasser()
 
     # check if the source folder exists before starting the loop
     if not os.path.exists(args.source):
