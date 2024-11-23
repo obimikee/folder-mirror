@@ -108,11 +108,11 @@ def getFileHash(file_path):
     hasher = hashlib.md5()  # create a new md5 hash object
 
     with open(file_path, 'rb') as file:
-        buf = file.read()  # read the file in chunks
+        buf = file.read(65536)  # read the file in chunks of 64KB
 
         while len(buf) > 0:
             hasher.update(buf)
-            buf = file.read()
+            buf = file.read(65536)
     
     return hasher.hexdigest()  # return the hash of the file
 
