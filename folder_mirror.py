@@ -9,8 +9,9 @@ import sys
 
 def argumentPasser():
     '''
-    Parse the command line arguments
+    Parse the command line arguments.
     '''
+
     parser = argparse.ArgumentParser(description='Syncer')
     parser.add_argument('source', type=str, help='Path to the source folder')
     parser.add_argument('replica', type=str, help='Path to the replica folder')
@@ -27,7 +28,11 @@ def logger(log_file_path, changes_made, total_folders=None, total_files=None,
     Log the message to the log file and print it to the console output.
 
     Requires: 
+        - valid log file path
+        - boolean indicating synchronization changes
     Ensures:
+        - colorized console output
+        - plain-text log file entry
     '''
 
     # define the colors for console output
@@ -44,7 +49,6 @@ def logger(log_file_path, changes_made, total_folders=None, total_files=None,
     ident = "    "
 
     if changes_made:
-
         message = (
             f"{COLOR_GREEN}Sync complete: {COLOR_RESET}"
             f"{len(folders_created)} folder(s) created, "
@@ -97,8 +101,14 @@ def logger(log_file_path, changes_made, total_folders=None, total_files=None,
 
 def signalHandler(signal, frame):
     '''
-    
+    Handle keyboard interrupt (Ctrl+C) to gracefully terminate the sync process.
+
+    Requires:
+        - signal interrupt event
+    Ensures:
+        - Prints termination message and exits the program cleanly
     '''
+
     print("\nSync process terminated by user.")
     sys.exit(0)
 
@@ -106,8 +116,16 @@ def signalHandler(signal, frame):
 
 def getFileHash(file_path):
     '''
+    Calculate MD5 hash of a file using chunk-based reading.
+    (can be a little slow for large files)
 
+    Requires:
+        - valid file path
+    Ensures:
+        - calculates file hash efficiently
+        - returns unique hash string for file content
     '''
+
     hasher = hashlib.md5()  # create a new md5 hash object
 
     with open(file_path, 'rb') as file:
@@ -123,9 +141,15 @@ def getFileHash(file_path):
 
 def filesAreEqual(file1, file2):
     '''
-    Compare two files.
-    First by size, then by hash if sizes match.
+    Compare two files. First by size then by hash (if sizes match).
+
+    Requires:
+        - two valid file paths
+    Ensures:
+        - compares files by size and hash
+        - returns boolean indicating file equality
     '''
+    
     # compare the sizes of the files
     if os.path.getsize(file1) != os.path.getsize(file2):
         return False
@@ -140,8 +164,15 @@ def syncer(source, replica, log_file_path):
     Synchronize the source folder with the replica folder.
 
     Requires:
+        - valid source folder path
+        - valid replica folder path
+        - valid log file path
     Ensures:
+        - replica folder mirrors source folder
+        - logs all synchronization operations
+        - handles file and folder additions, updates, and deletions
     '''
+
     # counters for total folder and files
     total_folders = 0
     total_files = 0
@@ -229,7 +260,8 @@ def syncer(source, replica, log_file_path):
             except OSError:
                 # folder might not be empty, which is fine
                 pass
-    
+
+    # log the synchronization changes    
     if changes_made:
         logger(log_file_path, changes_made, 
                 folders_created=folders_created, 
@@ -247,19 +279,19 @@ def syncer(source, replica, log_file_path):
 
 def main():
     '''
-    Main function to run the syncer function when conditions are met
+    Main function that initializes and runs the folder synchronization process.
     '''
     args = argumentPasser()
 
     # handle the SIGINT signal (Ctrl+C) to terminate the sync process
     signal.signal(signal.SIGINT, signalHandler)
 
-    # check if the source folder exists beCOLOR starting the loop
+    # check if the source folder exists before starting the loop
     if not os.path.exists(args.source):
         print(f"Error: The source folder '{args.source}' does not exist.")
         return
 
-    # check if the replica folder exists beCOLOR starting the loop
+    # check if the replica folder exists before starting the loop
     if not os.path.exists(args.replica):
         print(f"Error: The replica folder '{args.replica}' does not exist.")
         return
