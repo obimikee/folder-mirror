@@ -11,11 +11,11 @@ A Python script for one-way folder synchronization, developed as part of a test 
 - Continuous synchronization with custom intervals
 - Keyboard interrupt (Ctrl+C) support
 
-## Prerequisites 🛠
+## Prerequisites 🛠️
 - Python 3.7+
 - Standard Python libraries (no additional installations required)
 
-## Installation
+## Installation 📥
 1. Clone the repository
 2. Ensure you have Python 3.7 or higher installed
 
@@ -29,16 +29,18 @@ python3 folder-sync.py <source_folder> <replica_folder> <interval_seconds> <log_
 - interval_seconds:  Synchronization interval in seconds (the frequency at which synchronization happens).
 - log_file_path: Path to the log file or log file name where synchronization operations will be recorded.
 
-## Usage Example
+Example:
 
 ```bash
 python folder-sync.py /path/to/source /path/to/replica 60 /path/to/log_file.txt
 ```
 
-## Log Example
+## Log Example 🖼️
+![log_example](https://github.com/user-attachments/assets/f52b53df-1f16-464c-ad60-957fcf162e9f)
 
 
-## Video Demo
+## Video Demo 📹
+[demo.webm](https://github.com/user-attachments/assets/2660e785-a71f-4fa9-b76e-460cec0ec065)
 
-
-#### Created by Miguel Lages
+#
+### Created by Miguel Lages
