@@ -3,6 +3,9 @@ import os
 import shutil
 import time
 import hashlib
+import re
+import signal
+import sys
 
 def argumentPasser():
     '''
@@ -18,7 +21,8 @@ def argumentPasser():
 
 "---------------------------------------------------------------------------------------------"
 
-def logger(log_file_path, console_message=None, log_message=None, folders_created=None, folders_removed=None, files_copied=None, files_replaced=None, files_removed=None):
+def logger(log_file_path, changes_made, total_folders=None, total_files=None, 
+           folders_created=None, folders_removed=None, files_copied=None, files_replaced=None, files_removed=None):
     '''
     Log the message to the log file and print it to the console output.
 
@@ -36,68 +40,67 @@ def logger(log_file_path, console_message=None, log_message=None, folders_create
     # get the current timestamp
     timestamp = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
 
-    # build the summary message for the console output
-    if not console_message:
-        console_message = (
-            f"{COLOR_GREEN}Sync complete:{COLOR_RESET} "
+    # identation space for the message output
+    ident = "    "
+
+    if changes_made:
+
+        message = (
+            f"{COLOR_GREEN}Sync complete: {COLOR_RESET}"
             f"{len(folders_created)} folder(s) created, "
             f"{len(files_copied)} file(s) copied, "
             f"{len(files_replaced)} file(s) replaced, "
             f"{len(folders_removed)} folder(s) removed, "
             f"{len(files_removed)} file(s) removed."
         )
+
+        if folders_created:
+            formatted_folders_created = [f"/{folder}" for folder in folders_created]  # add a slash to each folder
+            message += f"\n{ident}{COLOR_YELLOW}Folders created:{COLOR_RESET} {', '.join(formatted_folders_created)}"
+        if files_copied:
+            message += f"\n{ident}{COLOR_YELLOW}Files copied:{COLOR_RESET} {', '.join(files_copied)}"
+        if files_replaced:
+            message += f"\n{ident}{COLOR_YELLOW}Files replaced:{COLOR_RESET} {', '.join(files_replaced)}"
+        if folders_removed:
+            formatted_folders_removed = [f"/{folder}" for folder in folders_removed]  # add a slash to each folder
+            message += f"\n{ident}{COLOR_RED}Folders removed:{COLOR_RESET} {', '.join(formatted_folders_removed)}"
+        if files_removed:
+            message += f"\n{ident}{COLOR_RED}Files removed:{COLOR_RESET} {', '.join(files_removed)}"
     
-    indent = "    "
-    if folders_created:
-        formatted_folders_created = [f"/{folder}" for folder in folders_created]  # add a slash to each folder
-        console_message += f"\n{indent}{COLOR_YELLOW}Folders created:{COLOR_RESET} {', '.join(formatted_folders_created)}"
-    if files_copied:
-        console_message += f"\n{indent}{COLOR_YELLOW}Files copied:{COLOR_RESET} {', '.join(files_copied)}"
-    if files_replaced:
-        console_message += f"\n{indent}{COLOR_YELLOW}Files replaced:{COLOR_RESET} {', '.join(files_replaced)}"
-    if folders_removed:
-        formatted_folders_removed = [f"/{folder}" for folder in folders_removed]  # add a slash to each folder
-        console_message += f"\n{indent}{COLOR_RED}Folders removed:{COLOR_RESET} {', '.join(formatted_folders_removed)}"
-    if files_removed:
-        console_message += f"\n{indent}{COLOR_RED}Files removed:{COLOR_RESET} {', '.join(files_removed)}"
-        
-    formatted_console_message = f"{COLOR_CYAN}{timestamp}{COLOR_RESET}: {console_message}"  # add color to the timestamp
-    print(formatted_console_message)  # print the message to the console
-
-
-    # ensure the log directory exists
-    os.makedirs(log_file_path, exist_ok=True)
-
-    # build the summary message for the console output
-    if not log_message:
-        log_message = (
-            f"Sync complete: "
-            f"{len(folders_created)} folder(s) created, "
-            f"{len(files_copied)} file(s) copied, "
-            f"{len(files_replaced)} file(s) replaced, "
-            f"{len(folders_removed)} folder(s) removed, "
-            f"{len(files_removed)} file(s) removed."
+    else:
+        message = (
+            f"{COLOR_GREEN}Sync complete{COLOR_RESET}: No changes needed - {total_folders} folder(s) and {total_files} file(s) are already in sync."
         )
-    
-    indent = "    "
-    if folders_created:
-        formatted_folders_created = [f"/{folder}" for folder in folders_created]  # add a slash to each folder
-        log_message += f"\n{indent}Folders created: {', '.join(formatted_folders_created)}"
-    if files_copied:
-        log_message += f"\n{indent}Files copied: {', '.join(files_copied)}"
-    if files_replaced:
-        log_message += f"\n{indent}Files replaced: {', '.join(files_replaced)}"
-    if folders_removed:
-        formatted_folders_removed = [f"/{folder}" for folder in folders_removed]  # add a slash to each folder
-        log_message += f"\n{indent}Folders removed: {', '.join(formatted_folders_removed)}"
-    if files_removed:
-        log_message += f"\n{indent}Files removed: {', '.join(files_removed)}"
 
-    formatted_log_message = f"{timestamp}: {log_message}"
+    formatted_message = f"{COLOR_CYAN}{timestamp}{COLOR_RESET}: {message}"
+
+    # print the message to the console
+    print(formatted_message)
+
+    # remove ANSI escape codes from the text
+    ansi_escape = re.compile(r'\x1b\[([0-9;]*[mK])')
+    log_message = ansi_escape.sub('', formatted_message)
+
+    # ensure the log directory exists if log_file_path is a directory
+    if os.path.isdir(log_file_path):
+        os.makedirs(log_file_path, exist_ok=True)
+        log_file = os.path.join(log_file_path, "log_file.txt")  # default log file in the directory
+    else:
+        # treat log_file_path as a file
+        log_file = log_file_path
 
     # write the message to the log file
-    with open(f"{log_file_path}/logs.txt", 'a') as file:
-        file.write(formatted_log_message + "\n")
+    with open(log_file, 'a') as file:
+        file.write(log_message + "\n")
+
+"---------------------------------------------------------------------------------------------"
+
+def signalHandler(signal, frame):
+    '''
+    
+    '''
+    print("\nSync process terminated by user.")
+    sys.exit(0)
 
 "---------------------------------------------------------------------------------------------"
 
@@ -181,14 +184,22 @@ def syncer(source, replica, log_file_path):
             replica_file = os.path.join(replica_path, file)  # path to the replica file
 
             # copy (in case they dont exist)
-            if not os.path.exists(replica_file): 
-                shutil.copy2(source_file, replica_file)  # copy the file (including metadata)
+            if not os.path.exists(replica_file):
+                try:
+                    shutil.copy2(source_file, replica_file)  # copy the file (including metadata)
+                except Exception as e:
+                    print(f"Error copying file '{source_file}' to '{replica_file}': {e}")
+
                 files_copied.append(file)
                 changes_made = True
 
             # replace (in case they are outdated)
             elif not filesAreEqual(source_file, replica_file):
-                shutil.copy2(source_file, replica_file)  # copy the file (including metadata)
+                try:
+                    shutil.copy2(source_file, replica_file)  # copy the file (including metadata)
+                except Exception as e:
+                    print(f"Error replacing file '{source_file}' to '{replica_file}': {e}")
+
                 files_replaced.append(file)
                 changes_made = True
 
@@ -219,9 +230,8 @@ def syncer(source, replica, log_file_path):
                 # folder might not be empty, which is fine
                 pass
     
-    # log a message if no files were copied or removed
     if changes_made:
-        logger(log_file_path, 
+        logger(log_file_path, changes_made, 
                 folders_created=folders_created, 
                 folders_removed=folders_removed, 
                 files_copied=files_copied, 
@@ -229,13 +239,8 @@ def syncer(source, replica, log_file_path):
                 files_removed=files_removed
             )
     else:
-        # define the colors for console output
-        COLOR_RESET = "\033[0m"
-        COLOR_GREEN = "\033[32m"
-
-        logger(log_file_path, 
-            console_message=(f"{COLOR_GREEN}Sync complete:{COLOR_RESET} No changes needed - {total_folders} folder(s) and {total_files} file(s) are already in sync."),
-            log_message=(f"Sync complete: No changes needed - {total_folders} folder(s) and {total_files} file(s) are already in sync.")
+        logger(log_file_path, changes_made,
+                total_folders=total_folders, total_files=total_files
             )
 
 "---------------------------------------------------------------------------------------------"
@@ -246,20 +251,26 @@ def main():
     '''
     args = argumentPasser()
 
-    # check if the source folder exists before starting the loop
+    # handle the SIGINT signal (Ctrl+C) to terminate the sync process
+    signal.signal(signal.SIGINT, signalHandler)
+
+    # check if the source folder exists beCOLOR starting the loop
     if not os.path.exists(args.source):
         print(f"Error: The source folder '{args.source}' does not exist.")
         return
 
-    # check if the replica folder exists before starting the loop
+    # check if the replica folder exists beCOLOR starting the loop
     if not os.path.exists(args.replica):
         print(f"Error: The replica folder '{args.replica}' does not exist.")
         return
 
     # run the syncer function in a loop with the specified interval
     while True:
-        syncer(args.source, args.replica, args.log_file_path)
-        time.sleep(args.interval)
+        try:
+            syncer(args.source, args.replica, args.log_file_path)
+            time.sleep(args.interval)
+        except KeyboardInterrupt:
+            break
 
 "---------------------------------------------------------------------------------------------"
 
